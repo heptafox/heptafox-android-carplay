@@ -33,7 +33,7 @@ class MediaLaunchers(
         fun create(context: Context): MediaLaunchers {
             val app = context.applicationContext
             return MediaLaunchers(
-                spotify = SpotifyLauncher(app),
+                spotify = SpotifyLauncher(app, SpotifySearch()),
                 youtube = YouTubeLauncher(app, YouTubeSearch(BuildConfig.YT_API_KEY)),
             )
         }

@@ -18,10 +18,10 @@ Hepta is a sideloaded Android Auto app: tap **Speak** on the car screen, say "pl
 Test on a desktop without the car: in Android Auto developer settings start the head unit server, then
 `adb forward tcp:5277 tcp:5277 && $ANDROID_HOME/extras/google/auto/desktop-head-unit`.
 
-Check Spotify's play-from-search intent directly:
+Check that a Spotify track URI autoplays, and watch Spotify's session state:
 ```sh
-adb shell am start -a android.media.action.MEDIA_PLAY_FROM_SEARCH -p com.spotify.music \
-  -e query "believer imagine dragons" -e android.intent.extra.focus "vnd.android.cursor.item/*"
+adb shell am start -a android.intent.action.VIEW -d spotify:track:0pqnGHJpmpxLKifKRmU6WP -p com.spotify.music
+adb shell dumpsys media_session | grep -A12 com.spotify.music | grep -oE 'state=[A-Z]+|description=[^,]+'
 ```
 
 ## Build setup
@@ -43,7 +43,7 @@ HeptaCarAppService (wires a Session)
                                 │                 └ CarMicSource: CarAudioRecord → pipe → SpeechRecognizer EXTRA_AUDIO_SOURCE
                                 └──> VoiceAssistant.handle(transcript)  (assistant)
                                         ├ CommandParser.parse → PlayCommand(provider, query)  (command, pure Kotlin)
-                                        └ MediaLaunchers → SpotifyLauncher | YouTubeLauncher(+YouTubeSearch)  (playback)
+                                        └ MediaLaunchers → SpotifyLauncher(+SpotifySearch) | YouTubeLauncher(+YouTubeSearch)  (playback)
   <──pop with AssistantState result── ListeningScreen
 ```
 
@@ -54,7 +54,8 @@ HeptaCarAppService (wires a Session)
 - `CarMicSource` holds `AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE` while recording, so music pauses and isn't transcribed. It pumps audio on its own thread and must always be `close()`d (`SpeechListener` does this in `finally`).
 - `SpeechListener` works around a recognizer quirk. When Google's on-device recognizer is fed `EXTRA_AUDIO_SOURCE`, it only reports partial results and never finishes on its own. So end-of-speech triggers `stopListening()`, the last partial is used as the transcript, and a hard cutoff stops listening after 8 s. Don't "simplify" this back to `onResults` only. It must run on the main thread.
 - Starting Spotify/YouTube from the background needs the "Display over other apps" grant (`SYSTEM_ALERT_WINDOW`) as well as `RECORD_AUDIO`. Both are checked in `setup/Permissions` and granted from `MainActivity`.
-- Spotify uses `MEDIA_PLAY_FROM_SEARCH` (works on the free tier). YouTube does one Data API v3 search, which costs 100 quota units (about 100/day), and opens the top video in the YouTube app (audio only in the car).
+- Spotify: `MEDIA_PLAY_FROM_SEARCH` only fills in Spotify's search box (9.x), its media session / MediaBrowserService ignore `playFromSearch` from non-Assistant callers, the Web API needs Premium, and Google's Custom Search API is closed to new projects. What works on free is a `spotify:track:<id>` VIEW intent, so `SpotifySearch` gets the id from Google's "I'm Feeling Lucky" redirect scoped to `open.spotify.com/track`. Don't "simplify" back to the intent.
+- YouTube does one Data API v3 search, which costs 100 quota units (about 100/day), and opens the top video in the YouTube app (audio only in the car).
 
 ### Adding a provider
 

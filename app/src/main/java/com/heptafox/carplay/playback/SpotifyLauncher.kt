@@ -1,28 +1,27 @@
 package com.heptafox.carplay.playback
 
-import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
-import android.provider.MediaStore
+import android.net.Uri
 
 /**
- * Asks Spotify to search and play via the standard "play from search" intent.
- * Works on the free tier: Spotify's own APIs require Premium for developer apps.
+ * Opens a track URI in Spotify, which autoplays on the free tier. The obvious routes don't work:
+ * MEDIA_PLAY_FROM_SEARCH only fills in Spotify's search box since 9.x, and Spotify's media session
+ * and MediaBrowserService ignore playFromSearch from any app that isn't Assistant or Android Auto.
  */
-class SpotifyLauncher(private val context: Context) : MediaLauncher {
+class SpotifyLauncher(
+    private val context: Context,
+    private val search: SpotifySearch,
+) : MediaLauncher {
 
     override suspend fun launch(query: String) {
-        val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+        val trackId = search.firstTrackId(query) ?: throw PlaybackException("No Spotify results for \"$query\"")
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("spotify:track:$trackId"))
             .setPackage(SPOTIFY_PACKAGE)
-            .putExtra(SearchManager.QUERY, query)
-            .putExtra(MediaStore.EXTRA_MEDIA_FOCUS, UNSTRUCTURED_FOCUS)
         context.startAppActivity(intent, "Spotify")
     }
 
     private companion object {
         const val SPOTIFY_PACKAGE = "com.spotify.music"
-
-        /** "Any kind of media": lets Spotify decide between track, artist, playlist or podcast. */
-        const val UNSTRUCTURED_FOCUS = "vnd.android.cursor.item/*"
     }
 }

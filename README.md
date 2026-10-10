@@ -32,7 +32,7 @@ In Android Studio, open **Tools → SDK Manager → SDK Tools** and install
 ### 2. Get a YouTube API key
 
 Hepta asks the YouTube Data API for the top video that matches what you said. The key is free.
-Spotify needs no key.
+Spotify needs no key: Hepta finds the track through a Google web search.
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/) and sign in.
 2. At the top, click the project picker, then **New project**. Name it anything, e.g. `hepta`, and create it.
